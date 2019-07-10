@@ -1,0 +1,8 @@
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\bin\Debug\ProjectInfo.dll
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\bin\Debug\ProjectInfo.pdb
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\bin\Debug\Microsoft.TeamFoundation.WorkItemTracking.Client.DataStore.dll
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\bin\Debug\Microsoft.TeamFoundation.WorkItemTracking.Client.Cache.dll
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\bin\Debug\Microsoft.TeamFoundation.WorkItemTracking.Client.RuleEngine.dll
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\obj\Debug\ProjectInfo.csprojResolveAssemblyReference.cache
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\obj\Debug\ProjectInfo.dll
+E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\ProjectInfo\obj\Debug\ProjectInfo.pdb

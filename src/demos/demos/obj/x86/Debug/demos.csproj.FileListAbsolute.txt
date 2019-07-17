@@ -1,7 +1,0 @@
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\bin\Debug\demos.exe
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\bin\Debug\demos.pdb
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\bin\Debug\ProjectInfo.dll
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\bin\Debug\ProjectInfo.pdb
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\obj\x86\Debug\demos.csprojResolveAssemblyReference.cache
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\obj\x86\Debug\demos.exe
-E:\MyProject\TFSCodeReviewer\TFSCodeReviwer\src\demos\demos\obj\x86\Debug\demos.pdb

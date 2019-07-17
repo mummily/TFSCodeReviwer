@@ -15,25 +15,22 @@ namespace TFSCodeReviewer
     /// </summary>
     class Program
     {
-
         private static string s_uri = @"http://tfs02.hollysys.net:9080/tfs/";
-
-
 
         static void Main(string[] args)
         {
             //测试获取项目名称
             TeamManager mgr = new TeamManager();
             List<TeamInfo> projs = mgr.GetTeams(s_uri);
-            TEST_PrintProjectInfos(projs);
+            // TEST_PrintProjectInfos(projs);
 
-            TeamInfo team = projs.Find(s => s.TeamCollectionName.Contains("v6.5.x"));
+            TeamInfo team = projs.Find(s => s.TeamCollectionName.Contains("AT"));
 
-            ItemSet items = TEST_GetItems(team, "$/HMI/01_dev-V6.5.1/服务器/代码/NewAlarmSummery");
+            ItemSet items = TEST_GetItems(team, "$/AutoThink/DCS_AT/02_Code");
 
-            PrintItems(items);
+            // PrintItems(items);
 
-            string itemPath = "$/HMI/01_dev-V6.5.1/服务器/代码/NewAlarmSummery/NewAlarmSummery.cpp";
+            string itemPath = @"$/AutoThink/DCS_AT/02_Code\15_ShelfManager\docview\CabinetView.cpp";
 
             IEnumerable chgs = TEST_GetHistorys(team, itemPath);
 
@@ -58,7 +55,7 @@ namespace TFSCodeReviewer
                 {
                     latest = chg;
                 }
-                else if (pos == 4)
+                else if (pos == 1)
                 {
                     later = chg;
                 }

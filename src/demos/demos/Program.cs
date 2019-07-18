@@ -1,166 +1,179 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.TeamFoundation.Client;
-using Microsoft.TeamFoundation.VersionControl.Client;
-using Microsoft.TeamFoundation.VersionControl.Common;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Configuration;
+using System.Windows.Forms;
 
-namespace TFSCodeReviewer
+using Microsoft.TeamFoundation.Client;
+using Microsoft.TeamFoundation.Framework.Client;
+using Microsoft.TeamFoundation.Framework.Common;
+using Microsoft.TeamFoundation.VersionControl.Client;
+
+namespace TFSCodeCounter
 {
     /// <summary>
     /// 
     /// </summary>
     class Program
     {
-        private static string s_uri = @"http://tfs02.hollysys.net:9080/tfs/";
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
         static void Main(string[] args)
         {
-            //测试获取项目名称
-            TeamManager mgr = new TeamManager();
-            List<TeamInfo> projs = mgr.GetTeams(s_uri);
-            // TEST_PrintProjectInfos(projs);
+            CounterConfig config = GetConfig();
 
-            TeamInfo team = projs.Find(s => s.TeamCollectionName.Contains("AT"));
+            DownloadFiles(config, "52100");
+            DiffCount(config);
 
-            ItemSet items = TEST_GetItems(team, "$/AutoThink/DCS_AT/02_Code");
-
-            // PrintItems(items);
-
-            string itemPath = @"$/AutoThink/DCS_AT/02_Code\15_ShelfManager\docview\CabinetView.cpp";
-
-            IEnumerable chgs = TEST_GetHistorys(team, itemPath);
-
-            Item item = TEST_GetItem(team, itemPath);
-
-            // 最新的变更集.
-            Changeset latest = null;
-
-            // 最新的变更集后面那个变更集.
-            Changeset later = null;
-
-            int pos = 0;
-
-            foreach (Changeset chg in chgs)
-            {
-                Changeset chgset = (Changeset)chg;
-                Console.Write(chgset.ChangesetId);
-                Console.Write(" : ");
-                Console.WriteLine(chgset.Comment);
-
-                if (pos == 0)
-                {
-                    latest = chg;
-                }
-                else if (pos == 1)
-                {
-                    later = chg;
-                }
-
-                ++pos;
-            }
-
-            DiffItemVersionedFile srcFile = new DiffItemVersionedFile(item, new ChangesetVersionSpec(latest.ChangesetId));
-            DiffItemVersionedFile dstFile = new DiffItemVersionedFile(item, new ChangesetVersionSpec(later.ChangesetId));
-
-            DiffOptions diffOpts = new DiffOptions();
-            diffOpts.Flags = diffOpts.Flags | DiffOptionFlags.None;
-
-            Difference.VisualDiffFiles(item.VersionControlServer, itemPath, new ChangesetVersionSpec(latest.ChangesetId),
-                itemPath, new ChangesetVersionSpec(later.ChangesetId));
-            //Difference.DiffFiles(item.VersionControlServer, srcFile, dstFile, diffOpts, null, true);
-
-            item.VersionControlServer.DownloadFile(item.ServerItem.ToString(), 0, new ChangesetVersionSpec(latest.ChangesetId), "./temp1.cpp");
-            item.VersionControlServer.DownloadFile(item.ServerItem.ToString(), 0, new ChangesetVersionSpec(later.ChangesetId), "./temp2.cpp");
-
-            DiffSegment diffs = Difference.DiffFiles("./temp1.cpp", item.Encoding, "./temp2.cpp", item.Encoding, diffOpts);
-
-            Console.ReadLine();
-
+            Console.WriteLine("Press Any Key to Exit ... ...");
+            Console.ReadKey();
         }
-
 
         /// <summary>
-        /// 获取项目信息
+        /// 
         /// </summary>
-        /// <param name="uri">TFS地址</param>
-        private static void TEST_PrintProjectInfos(List<TeamInfo> projects)
+        /// <param name="config"></param>
+        /// <param name="changsetID"></param>
+        private static void DownloadFiles(CounterConfig config, string changsetID)
         {
             try
             {
-                foreach (var item in projects)
+                TfsConfigurationServer configurationServer =
+                  TfsConfigurationServerFactory.GetConfigurationServer(new Uri(config.Tfs));
+
+                // Get the catalog of team project collections
+                ReadOnlyCollection<CatalogNode> collectionNodes = configurationServer.CatalogNode.QueryChildren(
+                  new[] { CatalogResourceTypes.ProjectCollection },
+                  false, CatalogQueryOptions.None);
+
+                // List the team project collections
+                VersionControlServer vcs = null;
+                foreach (CatalogNode collectionNode in collectionNodes)
                 {
-                    Console.WriteLine(Utility.SplitOutLastSubstr(Uri.UnescapeDataString(item.TeamCollectionName), new char[2] {'\\', '/'}));
+                    // Use the InstanceId property to get the team project collection
+                    Guid collectionId = new Guid(collectionNode.Resource.Properties["InstanceId"]);
+                    TfsTeamProjectCollection teamProjectCollection = configurationServer.GetTeamProjectCollection(collectionId);
 
-                    foreach (var project in item.ProjectNames)
+                    if (!teamProjectCollection.Name.Equals(config.Project))
+                        continue;
+
+                    vcs = teamProjectCollection.GetService<VersionControlServer>();
+                    break;
+                }
+
+                if (vcs == null)
+                    throw new Exception();
+
+                var changesetList = vcs.QueryHistory(
+                  config.ServerLocation,
+                  VersionSpec.Latest,
+                  0,
+                  RecursionType.Full,
+                  null,
+                  null,
+                  VersionSpec.ParseSingleSpec(changsetID, null),
+                  1,
+                  true,
+                  false).Cast<Changeset>();
+
+                foreach (var cs in changesetList)
+                {
+                    var change = cs.Changes;
+                    foreach (var itemList in change)
                     {
-                        Console.WriteLine("\t" + Utility.SplitOutLastSubstr(Uri.UnescapeDataString(project.ProjectName), new char[2] {'\\', '/'}));
-                    }
+                        if (itemList.Item == null)
+                            continue;
 
-                    Console.WriteLine();
+                        string ServerItem = itemList.Item.ServerItem;
+
+                        var itemChgs = vcs.QueryHistory(itemList.Item.ServerItem,
+                            VersionSpec.Latest,
+                            0,
+                            RecursionType.Full,
+                            null,
+                            null,
+                            VersionSpec.ParseSingleSpec(changsetID, null),
+                            2,
+                            true,
+                            false);
+
+                        int index = 0;
+                        foreach (Changeset itemchg in itemChgs)
+                        {
+                            string revisionpath = (index == 0) ? config.CurrentRevision : config.PreviousRevision;
+                            string localItem = config.ClientLocation + @"\" + revisionpath + @"\" + changsetID;
+                            localItem += ServerItem.Substring(config.ServerLocation.Length);
+                            //public enum ChangeType
+                            //{
+                            //    None = 1,
+                            //    Add = 2,
+                            //    Edit = 4,
+                            //    Encoding = 8,
+                            //    Rename = 16,
+                            //    Delete = 32,
+                            //    Undelete = 64,
+                            //    Branch = 128,
+                            //    Merge = 256,
+                            //    Lock = 512,
+                            //    Rollback = 1024,
+                            //    SourceRename = 2048,
+                            //    Property = 8192
+                            //}
+
+                            if (!itemchg.Changes[0].ChangeType.HasFlag(ChangeType.Delete))
+                                vcs.DownloadFile(ServerItem, 0, VersionSpec.ParseSingleSpec(Convert.ToString(itemchg.ChangesetId), null), localItem);
+
+                            ++index;
+                        }
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (ChangesetNotFoundException)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine("!! Please check the change set id inside your config file !!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
             }
         }
-
-        private static Item TEST_GetItem(TeamInfo team, string path)
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        private static CounterConfig GetConfig()
         {
-            Item item = null;
-            try
-            {
-                VersionControlServer vcs = null;
-                team.VerCtrls.TryGetValue(team.TeamCollectionName, out vcs);
-                item = vcs.GetItem(path);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            string file = Application.ExecutablePath;
+            Configuration config = ConfigurationManager.OpenExeConfiguration(file);
 
-            return item;
+            CounterConfig counterCfg = new CounterConfig();
+            counterCfg.Tfs = config.AppSettings.Settings["Tfs"].Value.ToString();
+            counterCfg.Project = config.AppSettings.Settings["Project"].Value.ToString();
+            counterCfg.ServerLocation = config.AppSettings.Settings["ServerLocation"].Value.ToString();
+            counterCfg.ClientLocation = config.AppSettings.Settings["ClientLocation"].Value.ToString();
+            counterCfg.CurrentRevision = config.AppSettings.Settings["CurrentRevision"].Value.ToString();
+            counterCfg.PreviousRevision = config.AppSettings.Settings["PreviousRevision"].Value.ToString();
+            counterCfg.OutputFile = config.AppSettings.Settings["OutputFile"].Value.ToString();
+            counterCfg.IsRemain = Convert.ToBoolean(config.AppSettings.Settings["IsRemain"].Value);
+
+            return counterCfg;
         }
 
-        private static ItemSet TEST_GetItems(TeamInfo team, string path)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="config"></param>
+        private static void DiffCount(CounterConfig config)
         {
-            ItemSet sets = null;
-            try
-            {
-                VersionControlServer vcs = null;
-                team.VerCtrls.TryGetValue(team.TeamCollectionName, out vcs);
-                sets = vcs.GetItems(path, RecursionType.Full);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            string cmd = "diffcount.exe ";
+            cmd += config.ClientLocation + @"\" + config.PreviousRevision + " " + config.ClientLocation + @"\" + config.CurrentRevision;
+            cmd += " > " + config.OutputFile;
 
-            return sets;
-        }
-
-        private static void PrintItems(ItemSet items)
-        {
-            foreach (var item in items.Items)
-            {
-                Console.Write(item.ItemType.ToString());
-                Console.Write(": ");
-                Console.WriteLine(item.ServerItem.ToString());
-            }
-        }
-
-        private static IEnumerable TEST_GetHistorys(TeamInfo team, string path)
-        {
-            VersionControlServer vcs = null;
-            team.VerCtrls.TryGetValue(team.TeamCollectionName, out vcs);
-            Item item = TEST_GetItem(team, path);
-            ChangesetVersionSpec verspec = new ChangesetVersionSpec(item.ChangesetId);
-            var chgs = vcs.QueryHistory(path, verspec, 0, RecursionType.Full, null, null, null, 5, true, false);
-            return chgs;
+            Process proc = new Process();            proc.StartInfo.CreateNoWindow = true;            proc.StartInfo.FileName = "cmd.exe";            proc.StartInfo.UseShellExecute = false;            proc.StartInfo.RedirectStandardError = true;            proc.StartInfo.RedirectStandardInput = true;            proc.StartInfo.RedirectStandardOutput = true;            proc.Start();            proc.StandardInput.WriteLine(cmd);            proc.StandardInput.WriteLine("exit");            proc.Close();
         }
     }
 }
